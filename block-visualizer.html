@@ -1,0 +1,642 @@
+P<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bitcoin Block Visualizer</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            background-color: #1a1b26;
+            color: white;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .container {
+            width: 100%;
+            max-width: 600px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .controls {
+            margin-bottom: 20px;
+            width: 100%;
+            padding: 15px;
+            background-color: #252738;
+            border-radius: 8px;
+        }
+        
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        
+        button:hover {
+            background-color: #2980b9;
+        }
+        
+        #blockContainer {
+            width: 540px;
+            height: 540px;
+            background-color: #1a1b26;
+            border: 1px solid #343647;
+            margin-bottom: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .transaction {
+            position: absolute;
+            background-color: #4a7032;
+            border: 1px solid #30ff97;
+            box-sizing: border-box;
+        }
+        
+        h1 {
+            margin-bottom: 30px;
+            display: flex;
+            align-items: center;
+        }
+        
+        h1 span {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background-color: rgba(255, 255, 255, 0.2);
+            margin-left: 10px;
+            font-size: 14px;
+            font-weight: normal;
+        }
+        
+        .info-box {
+            background-color: #252738;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            width: 100%;
+        }
+        
+        .info-box h3 {
+            margin-top: 0;
+        }
+        
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        
+        .value {
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Aktuální blok <span>i</span></h1>
+        
+        <div class="info-box">
+            <div class="info-item">
+                <div>Počet transakcí:</div>
+                <div class="value" id="transactionCount">0</div>
+            </div>
+            <div class="info-item">
+                <div>Největší transakce:</div>
+                <div class="value" id="largestTransaction">0%</div>
+            </div>
+            <div class="info-item">
+                <div>Využití bloku:</div>
+                <div class="value" id="blockUsage">0%</div>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <button id="generateButton">Generovat nový blok</button>
+            <button id="downloadButton">Stáhnout jako SVG</button>
+            <div style="margin-top: 10px;">
+                <input type="checkbox" id="showBtcLogo" checked>
+                <label for="showBtcLogo">Přidat BTC</label>
+                <input type="checkbox" id="showCcLogo" checked style="margin-left: 15px;">
+                <label for="showCcLogo">Přidat CC</label>
+            </div>
+        </div>
+        
+        <div id="blockContainer"></div>
+    </div>
+
+    <script>
+        class Block {
+            constructor(width, height) {
+                this.width = width;
+                this.height = height;
+                this.transactions = [];
+                this.grid = [];
+                this.usage = 0;
+                this.hasBitcoinLogo = false; // Příznak, zda již máme transakci s Bitcoin logem
+                this.hasCcLogo = false; // Příznak, zda již máme transakci s CC logem
+                this.showBtcLogo = document.getElementById('showBtcLogo') ? document.getElementById('showBtcLogo').checked : true; // Výchozí hodnota
+                this.showCcLogo = document.getElementById('showCcLogo') ? document.getElementById('showCcLogo').checked : true; // Výchozí hodnota
+                this.ccLogoSize = 0; // Velikost transakce s CC logem
+                this.btcLogoSize = 0; // Velikost transakce s BTC logem
+                
+                // Inicializace mřížky
+                for (let y = 0; y < height; y++) {
+                    this.grid[y] = [];
+                    for (let x = 0; x < width; x++) {
+                        this.grid[y][x] = false;
+                    }
+                }
+            }
+            
+            // Zkontroluje, zda je oblast volná
+            isAreaFree(x, y, w, h) {
+                if (x + w > this.width || y + h > this.height) return false;
+                
+                for (let j = y; j < y + h; j++) {
+                    for (let i = x; i < x + w; i++) {
+                        if (this.grid[j][i]) return false;
+                    }
+                }
+                return true;
+            }
+            
+            // Umístí transakci do bloku
+            placeTransaction(x, y, w, h) {
+                for (let j = y; j < y + h; j++) {
+                    for (let i = x; i < x + w; i++) {
+                        this.grid[j][i] = true;
+                    }
+                }
+                
+                this.transactions.push({
+                    x, y, w, h,
+                    size: (w * h) / (this.width * this.height) * 100,
+                    isBitcoinLogo: false, // Výchozí hodnota pro všechny transakce
+                    isCcLogo: false // Výchozí hodnota pro všechny transakce
+                });
+                
+                this.usage += (w * h) / (this.width * this.height) * 100;
+            }
+            
+            // Najde volné místo pro danou velikost transakce
+            findFreeSpace(width, height) {
+                for (let y = 0; y < this.height - height + 1; y++) {
+                    for (let x = 0; x < this.width - width + 1; x++) {
+                        if (this.isAreaFree(x, y, width, height)) {
+                            return { x, y };
+                        }
+                    }
+                }
+                return null;
+            }
+            
+            // Najde největší možnou transakci, která se vejde
+            findMaxTransaction() {
+                // Pole pro uchování informací o maximální velikosti na každé pozici
+                let maxSize = Array(this.height).fill().map(() => Array(this.width).fill(0));
+                
+                // Vyplnění pole maxSize
+                for (let i = this.height - 1; i >= 0; i--) {
+                    for (let j = this.width - 1; j >= 0; j--) {
+                        if (!this.grid[i][j]) {
+                            maxSize[i][j] = 1;
+                            if (i + 1 < this.height && j + 1 < this.width) {
+                                maxSize[i][j] = Math.min(maxSize[i+1][j], maxSize[i][j+1], maxSize[i+1][j+1]) + 1;
+                            }
+                        }
+                    }
+                }
+                
+                // Najít maximální velikost a její pozici
+                let maxVal = 0;
+                let maxPos = { x: 0, y: 0 };
+                
+                for (let i = 0; i < this.height; i++) {
+                    for (let j = 0; j < this.width; j++) {
+                        if (maxSize[i][j] > maxVal) {
+                            maxVal = maxSize[i][j];
+                            maxPos = { x: j, y: i };
+                        }
+                    }
+                }
+                
+                if (maxVal === 0) return null;
+                
+                return {
+                    x: maxPos.x,
+                    y: maxPos.y,
+                    width: maxVal,
+                    height: maxVal
+                };
+            }
+            
+            // Vyplní blok transakcemi
+            fill() {
+                console.log("Začátek generování bloku");
+                console.log("showBtcLogo:", this.showBtcLogo);
+                console.log("showCcLogo:", this.showCcLogo);
+                
+                // Přidáme největší transakci (70%)
+                const largeSize = Math.floor(Math.sqrt(0.70 * this.width * this.height));
+                console.log("Velikost největší transakce:", largeSize);
+                
+                // Vytvoříme seznam všech možných pozic pro umístění největší transakce
+                const possiblePositions = [];
+                for (let y = 0; y <= this.height - largeSize; y++) {
+                    for (let x = 0; x <= this.width - largeSize; x++) {
+                        if (this.isAreaFree(x, y, largeSize, largeSize)) {
+                            possiblePositions.push({x, y});
+                        }
+                    }
+                }
+                
+                // Vybereme náhodnou pozici z možných umístění
+                if (possiblePositions.length > 0) {
+                    const randomIndex = Math.floor(Math.random() * possiblePositions.length);
+                    const largePos = possiblePositions[randomIndex];
+                    this.placeTransaction(largePos.x, largePos.y, largeSize, largeSize);
+                    console.log("Největší transakce umístěna");
+                }
+                
+                // Přidáme transakci 5%
+                const mediumSize = Math.floor(Math.sqrt(0.05 * this.width * this.height));
+                console.log("Velikost 5% transakce:", mediumSize);
+                
+                // Najdeme všechny možné pozice pro 5% transakci
+                const mediumPositions = [];
+                for (let y = 0; y <= this.height - mediumSize; y++) {
+                    for (let x = 0; x <= this.width - mediumSize; x++) {
+                        if (this.isAreaFree(x, y, mediumSize, mediumSize)) {
+                            mediumPositions.push({x, y});
+                        }
+                    }
+                }
+                
+                console.log("Počet možných pozic pro 5% transakci:", mediumPositions.length);
+                
+                // Vybereme náhodnou pozici
+                if (mediumPositions.length > 0) {
+                    const randomIndex = Math.floor(Math.random() * mediumPositions.length);
+                    const mediumPos = mediumPositions[randomIndex];
+                    this.placeTransaction(mediumPos.x, mediumPos.y, mediumSize, mediumSize);
+                    console.log("5% transakce umístěna");
+                    
+                    // Označíme 5% transakci jako tu, která bude obsahovat CC logo, pokud je checkbox zaškrtnutý
+                    if (this.showCcLogo) {
+                        this.transactions[this.transactions.length - 1].isCcLogo = true;
+                        this.hasCcLogo = true;
+                        this.ccLogoSize = mediumSize;
+                        console.log("CC logo umístěno do 5% transakce:", this.transactions[this.transactions.length - 1]);
+                    }
+                } else {
+                    console.log("Nelze umístit 5% transakci - není volné místo");
+                    // Pokud nelze umístit 5% transakci, nastavíme příznak, že CC logo ještě nebylo umístěno
+                    this.hasCcLogo = false;
+                }
+                
+                // Přidáme transakci 3%
+                const smallSize = Math.floor(Math.sqrt(0.03 * this.width * this.height));
+                console.log("Velikost 3% transakce:", smallSize);
+                
+                // Najdeme všechny možné pozice pro 3% transakci
+                const smallPositions = [];
+                for (let y = 0; y <= this.height - smallSize; y++) {
+                    for (let x = 0; x <= this.width - smallSize; x++) {
+                        if (this.isAreaFree(x, y, smallSize, smallSize)) {
+                            smallPositions.push({x, y});
+                        }
+                    }
+                }
+                
+                console.log("Počet možných pozic pro 3% transakci:", smallPositions.length);
+                
+                // Vybereme náhodnou pozici
+                if (smallPositions.length > 0) {
+                    const randomIndex = Math.floor(Math.random() * smallPositions.length);
+                    const smallPos = smallPositions[randomIndex];
+                    this.placeTransaction(smallPos.x, smallPos.y, smallSize, smallSize);
+                    console.log("3% transakce umístěna");
+                    
+                    // Označíme 3% transakci jako tu, která bude obsahovat Bitcoin logo, pokud je checkbox zaškrtnutý
+                    // a CC logo je ve větší nebo stejně velké transakci
+                    if (this.showBtcLogo && (this.hasCcLogo && this.ccLogoSize >= smallSize)) {
+                        this.transactions[this.transactions.length - 1].isBitcoinLogo = true;
+                        this.hasBitcoinLogo = true;
+                        this.btcLogoSize = smallSize;
+                        console.log("BTC logo umístěno do 3% transakce:", this.transactions[this.transactions.length - 1]);
+                    }
+                } else {
+                    console.log("Nelze umístit 3% transakci - není volné místo");
+                    // Pokud nelze umístit 3% transakci, nastavíme příznak, že BTC logo ještě nebylo umístěno
+                    this.hasBitcoinLogo = false;
+                }
+                
+                // Vyplníme zbytek náhodnými transakcemi
+                let maxTries = 1000;
+                while (this.usage < 99 && maxTries > 0) {
+                    const freeSpace = this.findMaxTransaction();
+                    if (!freeSpace) break;
+                    
+                    // Náhodná velikost mezi 1 a maximální možnou
+                    let size = Math.min(freeSpace.width, freeSpace.height);
+                    
+                    // Zvýšíme variabilitu velkosti
+                    if (size > 3) {
+                        // Určíme náhodně, zda použijeme plnou velikost nebo menší
+                        const useFullSize = Math.random() < 0.2; // 20% šance na použití celé velikosti
+                        
+                        if (useFullSize) {
+                            // Použijeme celou velikost
+                            // Nic neměníme, size zůstává stejné
+                        } else {
+                            // Použijeme náhodnou velikost mezi 1 a maximální možnou
+                            const minSize = 1;
+                            const randomFactor = Math.random(); // hodnota mezi 0 a 1
+                            
+                            // Pro větší variabilitu použijeme nelineární distribuci
+                            if (randomFactor < 0.6) { // 60% malé transakce
+                                size = minSize + Math.floor(Math.random() * Math.min(3, size - minSize));
+                            } else if (randomFactor < 0.9) { // 30% střední transakce
+                                const midPoint = Math.floor(size / 2);
+                                size = Math.max(2, Math.floor(midPoint * randomFactor));
+                            } else { // 10% větší transakce
+                                size = Math.max(3, Math.floor(size * 0.7));
+                            }
+                        }
+                    }
+                    
+                    this.placeTransaction(freeSpace.x, freeSpace.y, size, size);
+                    
+                    // Pokud ještě nemáme umístěná loga, pokusíme se je umístit do této transakce
+                    if (size >= 5) { // Transakce musí být dostatečně velká
+                        // Ukládáme si velikosti transakcí pro loga, abychom mohli zajistit, že CC logo bude ve větší nebo stejně velké transakci
+                        if (!this.ccLogoSize) this.ccLogoSize = 0;
+                        if (!this.btcLogoSize) this.btcLogoSize = 0;
+                        
+                        // Pokud ještě nemáme CC logo a checkbox je zaškrtnutý
+                        // a (nemáme BTC logo nebo tato transakce je větší nebo stejně velká jako transakce s BTC logem)
+                        if (!this.hasCcLogo && this.showCcLogo && (
+                            !this.hasBitcoinLogo || size >= this.btcLogoSize
+                        )) {
+                            this.transactions[this.transactions.length - 1].isCcLogo = true;
+                            this.hasCcLogo = true;
+                            this.ccLogoSize = size;
+                            console.log("CC logo umístěno do náhradní transakce o velikosti", size);
+                        }
+                        // Pokud ještě nemáme BTC logo a checkbox je zaškrtnutý
+                        // a (máme CC logo v transakci, která je větší nebo stejně velká jako tato)
+                        else if (!this.hasBitcoinLogo && this.showBtcLogo && (
+                            this.hasCcLogo && this.ccLogoSize >= size
+                        )) {
+                            this.transactions[this.transactions.length - 1].isBitcoinLogo = true;
+                            this.hasBitcoinLogo = true;
+                            this.btcLogoSize = size;
+                            console.log("BTC logo umístěno do náhradní transakce o velikosti", size);
+                        }
+                        // Pokud nemáme ani jedno logo, počkáme na větší transakci pro CC logo
+                        else if (!this.hasCcLogo && !this.hasBitcoinLogo) {
+                            // Nic neděláme, čekáme na větší transakci pro CC logo
+                        }
+                    }
+                    
+                    maxTries--;
+                }
+                
+                // Vyplnění zbývajících 1x1 mezer
+                for (let y = 0; y < this.height; y++) {
+                    for (let x = 0; x < this.width; x++) {
+                        if (!this.grid[y][x]) {
+                            this.placeTransaction(x, y, 1, 1);
+                        }
+                    }
+                }
+            }
+            
+            // Vykreslit blok do HTML kontejneru
+            render(container) {
+                container.innerHTML = '';
+                
+                // Generujeme HTML pro každou transakci
+                this.transactions.forEach((tx, index) => {
+                    const txElement = document.createElement('div');
+                    txElement.className = 'transaction';
+                    txElement.style.left = `${tx.x * (container.offsetWidth / this.width)}px`;
+                    txElement.style.top = `${tx.y * (container.offsetHeight / this.height)}px`;
+                    txElement.style.width = `${tx.w * (container.offsetWidth / this.width)}px`;
+                    txElement.style.height = `${tx.h * (container.offsetHeight / this.height)}px`;
+                    
+                    // Pokud je to transakce s Bitcoin logem, přidáme SVG logo
+                    if (tx.isBitcoinLogo) {
+                        const logoSize = Math.min(tx.w, tx.h) * (container.offsetWidth / this.width) * 0.8;
+                        const logoX = tx.x * (container.offsetWidth / this.width) + (tx.w * (container.offsetWidth / this.width) - logoSize) / 2;
+                        const logoY = tx.y * (container.offsetHeight / this.height) + (tx.h * (container.offsetHeight / this.height) - logoSize) / 2;
+                        
+                        // Použijeme existující SVG soubor s Bitcoin logem
+                        const img = document.createElement('img');
+                        img.src = 'bitcoin-btc-logo.svg';
+                        img.style.position = "absolute";
+                        img.style.left = `${logoX}px`;
+                        img.style.top = `${logoY}px`;
+                        img.style.width = `${logoSize}px`;
+                        img.style.height = `${logoSize}px`;
+                        img.style.zIndex = "1";
+                        img.style.opacity = "0.7"; // 70% neprůhlednost (30% průhlednost)
+                        
+                        container.appendChild(img);
+                    }
+                    
+                    // Pokud je to transakce s CC logem, přidáme SVG logo
+                    if (tx.isCcLogo) {
+                        const logoSize = Math.min(tx.w, tx.h) * (container.offsetWidth / this.width) * 0.8;
+                        const logoX = tx.x * (container.offsetWidth / this.width) + (tx.w * (container.offsetWidth / this.width) - logoSize) / 2;
+                        const logoY = tx.y * (container.offsetHeight / this.height) + (tx.h * (container.offsetHeight / this.height) - logoSize) / 2;
+                        
+                        // Použijeme existující SVG soubor s CC logem
+                        const img = document.createElement('img');
+                        img.src = 'chaincamp-symbol.svg';
+                        img.style.position = "absolute";
+                        img.style.left = `${logoX}px`;
+                        img.style.top = `${logoY}px`;
+                        img.style.width = `${logoSize}px`;
+                        img.style.height = `${logoSize}px`;
+                        img.style.zIndex = "1";
+                        // CC logo bez pozadí
+                        img.style.opacity = "0.9"; // 90% neprůhlednost (10% průhlednost)
+                        
+                        container.appendChild(img);
+                    }
+                    
+                    // Variace barev pro různé velikosti - upravené hranice pro lepší rozlišení
+                    if (tx.size > 20) {
+                        txElement.style.backgroundColor = '#530b6e'; // Nejtmavší fialová pro největší transakci
+                    } else if (tx.size > 5) {
+                        txElement.style.backgroundColor = '#602178'; // Tmavě fialová
+                    } else if (tx.size > 1) {
+                        txElement.style.backgroundColor = '#6d3782'; // Středně fialová
+                    } else if (tx.size > 0.2) {
+                        txElement.style.backgroundColor = '#7a4c8c'; // Světlejší fialová
+                    } else {
+                        // Pro nejmenší transakce použijeme nejsvětlejší fialovou
+                        txElement.style.backgroundColor = '#8a5c9c'; // Nejsvětlejší fialová
+                    }
+                    
+                    container.appendChild(txElement);
+                });
+                
+                // Aktualizujeme informace
+                document.getElementById('transactionCount').textContent = this.transactions.length;
+                
+                // Najdeme největší transakci
+                const largest = this.transactions.reduce((max, tx) => tx.size > max ? tx.size : max, 0);
+                document.getElementById('largestTransaction').textContent = `${largest.toFixed(1)}%`;
+                
+                document.getElementById('blockUsage').textContent = `${this.usage.toFixed(1)}%`;
+            }
+            
+            // Vytvoří SVG reprezentaci bloku
+            toSVG() {
+                const svgNS = "http://www.w3.org/2000/svg";
+                
+                // Vytvoříme SVG element
+                const svg = document.createElementNS(svgNS, "svg");
+                svg.setAttribute("width", "540");
+                svg.setAttribute("height", "540");
+                svg.setAttribute("viewBox", "0 0 540 540");
+                svg.style.backgroundColor = "#1a1b26";
+                
+                // Přidáme každou transakci jako obdélník
+                this.transactions.forEach(tx => {
+                    const rect = document.createElementNS(svgNS, "rect");
+                    rect.setAttribute("x", tx.x * (540 / this.width));
+                    rect.setAttribute("y", tx.y * (540 / this.height));
+                    rect.setAttribute("width", tx.w * (540 / this.width));
+                    rect.setAttribute("height", tx.h * (540 / this.height));
+                    
+                    // Pokud je to transakce s Bitcoin logem, přidáme SVG logo
+                    if (tx.isBitcoinLogo) {
+                        const logoSize = Math.min(tx.w, tx.h) * (540 / this.width) * 0.8;
+                        const logoX = tx.x * (540 / this.width) + (tx.w * (540 / this.width) - logoSize) / 2;
+                        const logoY = tx.y * (540 / this.height) + (tx.h * (540 / this.height) - logoSize) / 2;
+                        
+                        // Vložíme Bitcoin logo jako image element
+                        const image = document.createElementNS(svgNS, "image");
+                        image.setAttribute("x", logoX);
+                        image.setAttribute("y", logoY);
+                        image.setAttribute("width", logoSize);
+                        image.setAttribute("height", logoSize);
+                        image.setAttribute("href", "bitcoin-btc-logo.svg");
+                        image.setAttribute("opacity", "0.7"); // 70% neprůhlednost (30% průhlednost)
+                        svg.appendChild(image);
+                    }
+                    
+                    // Pokud je to transakce s CC logem, přidáme SVG logo
+                    if (tx.isCcLogo) {
+                        const logoSize = Math.min(tx.w, tx.h) * (540 / this.width) * 0.8;
+                        const logoX = tx.x * (540 / this.width) + (tx.w * (540 / this.width) - logoSize) / 2;
+                        const logoY = tx.y * (540 / this.height) + (tx.h * (540 / this.height) - logoSize) / 2;
+                        
+                        // Vložíme CC logo jako image element
+                        const image = document.createElementNS(svgNS, "image");
+                        image.setAttribute("x", logoX);
+                        image.setAttribute("y", logoY);
+                        image.setAttribute("width", logoSize);
+                        image.setAttribute("height", logoSize);
+                        image.setAttribute("href", "chaincamp-symbol.svg");
+                        // CC logo bez pozadí v SVG
+                        image.setAttribute("opacity", "0.9"); // 90% neprůhlednost (10% průhlednost)
+                        svg.appendChild(image);
+                    }
+                    
+                    // Variace barev pro různé velikosti - upravené hranice pro lepší rozlišení
+                    if (tx.size > 20) {
+                        rect.setAttribute("fill", "#530b6e"); // Nejtmavší fialová pro největší transakci
+                    } else if (tx.size > 5) {
+                        rect.setAttribute("fill", "#602178"); // Tmavě fialová
+                    } else if (tx.size > 1) {
+                        rect.setAttribute("fill", "#6d3782"); // Středně fialová
+                    } else if (tx.size > 0.2) {
+                        rect.setAttribute("fill", "#7a4c8c"); // Světlejší fialová
+                    } else {
+                        // Pro nejmenší transakce použijeme nejsvětlejší fialovou
+                        rect.setAttribute("fill", "#8a5c9c"); // Nejsvětlejší fialová
+                    }
+                    
+                    rect.setAttribute("stroke", "#30ff97");
+                    rect.setAttribute("stroke-width", "1");
+                    
+                    svg.appendChild(rect);
+                });
+                
+                return svg;
+            }
+        }
+        
+        // Po načtení dokumentu
+        document.addEventListener('DOMContentLoaded', function() {
+            const blockContainer = document.getElementById('blockContainer');
+            const generateButton = document.getElementById('generateButton');
+            const downloadButton = document.getElementById('downloadButton');
+            
+            // Velikost mřížky - větší hodnoty = vyšší detaily, ale také pomalejší výpočet
+            const GRID_SIZE = 60;
+            let currentBlock = null;
+            const showBtcLogoCheckbox = document.getElementById('showBtcLogo');
+            const showCcLogoCheckbox = document.getElementById('showCcLogo');
+            
+            // Funkce pro generování nového bloku
+            function generateBlock() {
+                blockContainer.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:100%;color:#aaa;">Generování bloku...</div>';
+                
+                // Použijeme setTimeout, aby se UI mohlo aktualizovat před výpočtem
+                setTimeout(() => {
+                    currentBlock = new Block(GRID_SIZE, GRID_SIZE);
+                    // Aktualizujeme hodnoty podle stavu checkboxů
+                    currentBlock.showBtcLogo = showBtcLogoCheckbox.checked;
+                    currentBlock.showCcLogo = showCcLogoCheckbox.checked;
+                    currentBlock.fill();
+                    currentBlock.render(blockContainer);
+                }, 10);
+            }
+            
+            // Funkce pro stažení bloku jako SVG
+            function downloadSVG() {
+                if (!currentBlock) return;
+                
+                const svg = currentBlock.toSVG();
+                const svgData = new XMLSerializer().serializeToString(svg);
+                const blob = new Blob([svgData], {type: "image/svg+xml"});
+                const url = URL.createObjectURL(blob);
+                
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = "bitcoin-block.svg";
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+            
+            // Připojení event listenerů
+            generateButton.addEventListener('click', generateBlock);
+            downloadButton.addEventListener('click', downloadSVG);
+            
+            // Generování prvního bloku
+            generateBlock();
+        });
+    </script>
+</body>
+</html>
