@@ -6,7 +6,6 @@ Jednoduchý nástroj pro generování vizuálních reprezentací Bitcoin bloků.
 
 - Generování vizualizací Bitcoin bloků
 - Export do SVG formátu
-- Přidání Bitcoin a ChainCamp log
 - Statistiky o vygenerovaném bloku
 
 ## Použití
@@ -15,7 +14,7 @@ Otevřete HTML soubor v prohlížeči, klikněte na "Generovat nový blok" a st�
 
 ## Technické detaily
 
-Samostatný HTML soubor bez externích závislostí. Používá SVG loga Bitcoin a ChainCamp.
+Samostatný HTML soubor bez externích závislostí.
 
 ## Údržba
 
