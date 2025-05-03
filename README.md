@@ -1,20 +1,24 @@
 # Bitcoin Block Visualizer
 
-Jednoduchý nástroj pro generování vizuálních reprezentací Bitcoin bloků. Vytváří stylizované zobrazení bloků s transakcemi různých velikostí pro použití v prezentacích nebo článcích.
+Jednoduchý nástroj pro generování vizuálních reprezentací Bitcoin bloků. Vytváří stylizované zobrazení bloků s transakcemi různých velikostí pro použití v prezentacích nebo článcích. Blok má velikost 86 x 86 transakcí a vždy je 100% využitý.
 
 ## Funkce
 
-- Generování vizualizací Bitcoin bloků
+- Generování vizualizací Bitcoin bloků o velikosti 86 x 86 transakcí
+- Nastavitelná velikost hlavní transakce
+- Tenké zelené mezery mezi transakcemi
+- Zelené pozadí bloku
 - Export do SVG formátu
 - Statistiky o vygenerovaném bloku
+- 100% využití bloku
 
 ## Použití
 
-Otevřete HTML soubor v prohlížeči, klikněte na "Generovat nový blok" a stáhněte výsledek jako SVG.
+Otevřete HTML soubor v prohlížeči, nastavte požadovanou velikost hlavní transakce, klikněte na "Generovat nový blok" a stáhněte výsledek jako SVG.
 
 ## Technické detaily
 
-Samostatný HTML soubor bez externích závislostí.
+Samostatný HTML soubor bez externích závislostí. Aplikace používá algoritmus pro generování bloků s transakcemi různých velikostí, přičemž největší transakce má velikost nastavenou uživatelem. Mezi transakcemi jsou tenké zelené mezery a celý blok má vždy 100% využití.
 
 ## Údržba
 

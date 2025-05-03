@@ -103,6 +103,16 @@ P<!DOCTYPE html>
         .value {
             font-weight: bold;
         }
+        
+        input.value {
+            background-color: #252738;
+            color: white;
+            border: 1px solid #343647;
+            border-radius: 4px;
+            padding: 2px 5px;
+            width: 60px;
+            text-align: right;
+        }
     </style>
 </head>
 <body>
@@ -115,12 +125,12 @@ P<!DOCTYPE html>
                 <div class="value" id="transactionCount">0</div>
             </div>
             <div class="info-item">
-                <div>Největší transakce:</div>
-                <div class="value" id="largestTransaction">0%</div>
+                <div>Velikost hlavní transakce:</div>
+                <input type="number" class="value" id="largestTransaction" value="70" min="1" max="86">
             </div>
             <div class="info-item">
                 <div>Využití bloku:</div>
-                <div class="value" id="blockUsage">0%</div>
+                <div class="value" id="blockUsage">100%</div>
             </div>
         </div>
         
@@ -234,8 +244,11 @@ P<!DOCTYPE html>
             fill() {
                 console.log("Začátek generování bloku");
                 
-                // Přidáme největší transakci (70%)
-                const largeSize = Math.floor(Math.sqrt(0.70 * this.width * this.height));
+                // Získáme hodnotu z inputu
+                const transactionSize = parseInt(document.getElementById('largestTransaction').value) || 70;
+                
+                // Přidáme největší transakci (podle inputu)
+                const largeSize = Math.min(transactionSize, Math.min(this.width, this.height));
                 console.log("Velikost největší transakce:", largeSize);
                 
                 // Vytvoříme seznam všech možných pozic pro umístění největší transakce
@@ -310,6 +323,7 @@ P<!DOCTYPE html>
                 
                 // Vyplníme zbytek náhodnými transakcemi
                 let maxTries = 1000;
+                // Pokračujeme, dokud je možné umístit větší transakce
                 while (this.usage < 99 && maxTries > 0) {
                     const freeSpace = this.findMaxTransaction();
                     if (!freeSpace) break;
@@ -347,7 +361,7 @@ P<!DOCTYPE html>
                     maxTries--;
                 }
                 
-                // Vyplnění zbývajících 1x1 mezer
+                // Vyplnění zbývajících 1x1 mezer - vždy vyplníme celý blok na 100%
                 for (let y = 0; y < this.height; y++) {
                     for (let x = 0; x < this.width; x++) {
                         if (!this.grid[y][x]) {
@@ -394,11 +408,18 @@ P<!DOCTYPE html>
                 // Aktualizujeme informace
                 document.getElementById('transactionCount').textContent = this.transactions.length;
                 
-                // Najdeme největší transakci
-                const largest = this.transactions.reduce((max, tx) => tx.size > max ? tx.size : max, 0);
-                document.getElementById('largestTransaction').textContent = `${largest.toFixed(1)}%`;
+                const largestTransactionInput = document.getElementById('largestTransaction');
                 
-                document.getElementById('blockUsage').textContent = `${this.usage.toFixed(1)}%`;
+                // Najdeme největší transakci v počtu buněk
+                const largest = this.transactions.reduce((max, tx) => (tx.w * tx.h) > max ? (tx.w * tx.h) : max, 0);
+                const largestSize = Math.floor(Math.sqrt(largest)); // Převedeme na velikost strany čtverce
+                
+                // Pokud input nemá focus, aktualizujeme hodnotu
+                if (document.activeElement !== largestTransactionInput) {
+                    largestTransactionInput.value = largestSize;
+                }
+                
+                document.getElementById('blockUsage').textContent = `100%`;
             }
             
             // Vytvoří SVG reprezentaci bloku
@@ -464,6 +485,12 @@ P<!DOCTYPE html>
             // Velikost mřížky - větší hodnoty = vyšší detaily, ale také pomalejší výpočet
             const GRID_SIZE = 86;
             let currentBlock = null;
+            
+            // Získáme reference na input
+            const largestTransactionInput = document.getElementById('largestTransaction');
+            
+            // Přidáme event listener pro změny hodnoty v inputu
+            largestTransactionInput.addEventListener('change', generateBlock);
             
             // Funkce pro generování nového bloku
             function generateBlock() {
