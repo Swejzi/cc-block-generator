@@ -6,7 +6,7 @@ Jednoduchý nástroj pro generování vizuálních reprezentací Bitcoin bloků.
 
 - Generování vizualizací Bitcoin bloků o velikosti 86 x 86 transakcí
 - Nastavitelná velikost hlavní transakce
-- Tenké zelené mezery mezi transakcemi
+- Zelené mezery mezi transakcemi (velikost 1/3)
 - Zelené pozadí bloku
 - Export do SVG formátu
 - Statistiky o vygenerovaném bloku
@@ -18,7 +18,7 @@ Otevřete HTML soubor v prohlížeči, nastavte požadovanou velikost hlavní tr
 
 ## Technické detaily
 
-Samostatný HTML soubor bez externích závislostí. Aplikace používá algoritmus pro generování bloků s transakcemi různých velikostí, přičemž největší transakce má velikost nastavenou uživatelem. Mezi transakcemi jsou tenké zelené mezery a celý blok má vždy 100% využití.
+Samostatný HTML soubor bez externích závislostí. Aplikace používá algoritmus pro generování bloků s transakcemi různých velikostí, přičemž největší transakce má velikost nastavenou uživatelem. Mezi transakcemi jsou zelené mezery o velikosti přesně 1/3 a celý blok má vždy 100% využití.
 
 ## Údržba
 

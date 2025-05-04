@@ -55,6 +55,7 @@ P<!DOCTYPE html>
             margin-bottom: 20px;
             position: relative;
             overflow: hidden;
+            box-sizing: border-box;
         }
         
         .transaction {
@@ -376,16 +377,22 @@ P<!DOCTYPE html>
                 container.innerHTML = '';
                 
                 // Generujeme HTML pro každou transakci
-                // Vypočítáme velikost mezery (4x menší než nejmenší transakce)
-                const gap = (container.offsetWidth / this.width) * 0.25;
+                // Vypočítáme velikost jedné buňky a mezery
+                const containerSize = Math.min(container.offsetWidth, container.offsetHeight);
+                const cellSize = containerSize / (this.width + 2/3); // Přidáme 2/3 pro okraje (1/3 na každé straně)
+                const gap = cellSize * (1/3);
+                const padding = gap / 2; // Poloviční mezera jako okraj
+                
+                // Vypočítáme velikost buňky po odečtení mezery
+                const adjustedCellSize = cellSize - gap;
                 
                 this.transactions.forEach((tx, index) => {
                     const txElement = document.createElement('div');
                     txElement.className = 'transaction';
-                    txElement.style.left = `${tx.x * (container.offsetWidth / this.width) + gap/2}px`;
-                    txElement.style.top = `${tx.y * (container.offsetHeight / this.height) + gap/2}px`;
-                    txElement.style.width = `${tx.w * (container.offsetWidth / this.width) - gap}px`;
-                    txElement.style.height = `${tx.h * (container.offsetHeight / this.height) - gap}px`;
+                    txElement.style.left = `${padding + tx.x * cellSize + gap/2}px`;
+                    txElement.style.top = `${padding + tx.y * cellSize + gap/2}px`;
+                    txElement.style.width = `${tx.w * cellSize - gap}px`;
+                    txElement.style.height = `${tx.h * cellSize - gap}px`;
                     
                     
                     // Variace barev pro různé velikosti - upravené hranice pro lepší rozlišení
@@ -442,16 +449,22 @@ P<!DOCTYPE html>
                 // Nastavíme barvu pozadí SVG
                 svg.style.backgroundColor = "#30ff97";
                 
-                // Vypočítáme velikost mezery (4x menší než nejmenší transakce)
-                const gap = (540 / this.width) * 0.25;
+                // Vypočítáme velikost jedné buňky a mezery
+                const svgSize = 540;
+                const cellSize = svgSize / (this.width + 2/3); // Přidáme 2/3 pro okraje (1/3 na každé straně)
+                const gap = cellSize * (1/3);
+                const padding = gap / 2; // Poloviční mezera jako okraj
+                
+                // Vypočítáme velikost buňky po odečtení mezery
+                const adjustedCellSize = cellSize - gap;
                 
                 // Přidáme každou transakci jako obdélník
                 this.transactions.forEach(tx => {
                     const rect = document.createElementNS(svgNS, "rect");
-                    rect.setAttribute("x", tx.x * (540 / this.width) + gap/2);
-                    rect.setAttribute("y", tx.y * (540 / this.height) + gap/2);
-                    rect.setAttribute("width", tx.w * (540 / this.width) - gap);
-                    rect.setAttribute("height", tx.h * (540 / this.height) - gap);
+                    rect.setAttribute("x", padding + tx.x * cellSize + gap/2);
+                    rect.setAttribute("y", padding + tx.y * cellSize + gap/2);
+                    rect.setAttribute("width", tx.w * cellSize - gap);
+                    rect.setAttribute("height", tx.h * cellSize - gap);
                     
                     
                     // Variace barev pro různé velikosti - upravené hranice pro lepší rozlišení
